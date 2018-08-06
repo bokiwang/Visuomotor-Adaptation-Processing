@@ -24,130 +24,72 @@ A = importdata(filename, delimiterIn, headerlinesIn);
 
 % display info for inspection
 % disp([A.textdata(9,:)]);
-varnames = A.textdata(9,:);
-
-%%
-
-% data info
-fs = 100.251
-
-% Biofeedback tell us about the visual stimulation. Or where the target appears. 
-% ... this can be used to decide trial onset and offset; 
-
-% Performance can be inferred from Home, t1, t2, and t3 for no adaptation
-% ... on Home, t1_rotated30 etc for 30 degree perturbation
-% ... on Home, t1_rotated45 etc for 45 degree perturbation
-% Home = 1 happens whenever the hand reaches the home target, and so on.
 
 %% get variables
-% get resultant velocity from A, 11th column
-velocity = A.data(:,11);
-
+% Biofeedback info to derive trial info.
 biofbX = A.data(:,16); %Biofeedback x and y
 biofbY = A.data(:,17);
 
-Home = A.data(:, 22);
-T1 = A.data(:,23);
-T2 = A.data(:,24);
-T3 = A.data(:,25);
+% To be filtered
+% {'pos_x','pos_y','pos_z','vel_x','vel_y','vel_z','vel_mag','acc_x','acc_y','acc_z','acc_mag'}
+raw_data = A.data(:, 5:15);
+% filter data
+fc = 8; % cutoff freq
+filtered_data = ApplyFilter(raw_data, fc, 'all raw data');
+% parcel out data
+pos_matrix = filtered_data(:,1:3); % position data from [X Y Z]
+vel_matrix = filtered_data(:,4:6); 
+velocity = filtered_data(:,7);  % this is absolute value of resultant velocity 
+acc_matrix = filtered_data(:, 8:10);
+acceleration = filtered_data(:,11); % this is resultant acceleration
 
-%% find different 
-appears_T1 = (biofbX == -0.1157); % is Biofeedback showing Target 1
-appears_T2 = (biofbY == 0.18);
-appears_T3 = (biofbX == 0.1157);
-appears_targets = appears_T1 | appears_T2 | appears_T3; % overall indices for targets
+%% Auto find trial starts
+[all_starts, numoftrials] = FindAllStartPoints(velocity, biofbX, biofbY);
 
-appears_Home = ~ appears_targets;% Biofeedback for the Home target
+%% Visual Inspection and mark
 
-idx_targets_disappears = find(appears_targets(1:end-1)==1 & appears_targets(2:end) == 0); % find the index of when 
-idx_targets_appears = find(appears_targets(1:end-1)==0 & appears_targets(2:end) == 1); 
+% Mark Velocity Profile
+% set up markers for data linking to update figure
+vpmarker_x = all_starts;
+vpmarker_y = velocity(all_starts);
+% mark 
+[x, y] = MarkVelocity(velocity, vpmarker_x, vpmarker_y);
+all_starts = x;
+% separate reaches
+T1_out_starts = all_starts(1:6: 1+(numoftrials-1)*6);
+T1_in_starts = all_starts(2:6: 2+(numoftrials-1)*6);
+T2_out_starts = all_starts(3:6: 3+(numoftrials-1)*6);
+T2_in_starts = all_starts(4:6: 4+(numoftrials-1)*6);
+T3_out_starts = all_starts(5:6: 5+(numoftrials-1)*6);
+T3_in_starts = all_starts(6:6: 6+(numoftrials-1)*6);
 
-% find indices for the beginning and end of time window for T1
-idx_T1_disappears = find(appears_T1(1:end-1)==1 & appears_T1(2:end) == 0); 
-idx_T1_appears = find(appears_T1(1:end-1)==0 & appears_T1(2:end) == 1); 
+%% find maximum v during a reach 
+[at_maxvel, maxvel] = MaxVel(velocity, all_starts);
+% mark maximum velocity if needed.
+[x, y] = MarkVelocity(velocity, at_maxvel, maxvel);
+at_maxvel = x;
+% separate reaches
+T1_pkout_x = at_maxvel(1:6: 1+(numoftrials-1)*6);
+T1_pkin_x = at_maxvel(2:6: 2+(numoftrials-1)*6);
+T2_pkout_x = at_maxvel(3:6: 3+(numoftrials-1)*6);
+T2_pkin_x = at_maxvel(4:6: 4+(numoftrials-1)*6);
+T3_pkout_x = at_maxvel(5:6: 5+(numoftrials-1)*6);
+T3_pkin_x = at_maxvel(6:6: 6+(numoftrials-1)*6);
 
-idx_T2_disappears = find(appears_T2(1:end-1)==1 & appears_T2(2:end) == 0); 
-idx_T2_appears = find(appears_T2(1:end-1)==0 & appears_T2(2:end) == 1); 
 
-idx_T3_disappears = find(appears_T3(1:end-1)==1 & appears_T3(2:end) == 0); 
-idx_T3_appears = find(appears_T3(1:end-1)==0 & appears_T3(2:end) == 1); 
-
-%% 
-% the number of indices for T3 ends indicates total number of reaches
-% the number of in2out indices may be one more than out2in because of how
-% priyanka did the experiment
-numoftrials = length(idx_T3_disappears);
-
-%trial 
-% to find the start point for outward reach to T1
-V_START = .001;    % velocity needs to be below .001m/s to qualify as start 
-V_END = .03;       % velocity needs to be below .03m/s to qualify as end
-v_out = velocity( idx_T1_appears(1)+1 : idx_T1_disappears(1) ); % outward reach velocity
-is_v_low = (v_out < V_START);                 
-if_hit_home = Home( idx_T1_appears(1)+1 : idx_T1_disappears(1) ); 
-
-% find indices for points that suffice the critia
-indices = find(is_v_low & if_hit_home);  % index for variable v, not for velocity
-                                            % transformation to velocity,
-                                            % use "idx_T1_starts(1) +
-                                            % idx_potential_start"
-                                            % name as IDX_... for the
-                                            % overall velocity profile
-% If more than one index, use local minimum as start/end point    
-if length(indices) > 1 % identify the minimum velocity and use it as end
-    idxs = find(v_out == islocalmin(v_out));
-    if length(idxs) > 1  % if more than 1 local minima, use the last one
-        idx_out_start = idxs(end);
-    else
-        idx_out_start = idxs;
-    end
-else
-    idx_out_start = indices;
-end
-
-v_out(idx_out_start) == velocity(idx_T1_appears(1)+idx_out_start)
-outStarts = idx_T1_appears(1)+idx_out_start;
-%%
-% to find the start point for inward reach from T1, which is also the end
-% point for outward reach to T1
-v_in = velocity( idx_T1_disappears(1)+1 : idx_T2_appears(1) );
-is_vin_low = (v_in < V_END); % velocity below .03 m/s
-if_hit_target = T1( idx_T1_disappears(1)+1 : idx_T2_appears(1) ); 
-
-indices = find(is_vin_low & if_hit_target);
-
-if length(indices) > 1 % identify the minimum velocity and use it as end
-    idxs = find(v_in == islocalmin(v_in));
-    if length(idxs) > 1  % if more than 1 local minima, use the last one
-        idx_in_start = idxs(end);
-    else
-        idx_in_start = idxs;
-    end
-else
-    idx_in_start = indices;
-end
-
-v_in(idx_in_start) == velocity(idx_T1_disappears(1)+idx_in_start)
-inStarts = idx_T1_disappears(1)+idx_in_start;
-%% find maximum v during a reach btw out_start and in_start
-[vm, vm_idx] = max( velocity(outStarts:inStarts) )
-vMax_idx = vm_idx + outStarts -1;   % make sure local index translates to global index correctly
-velocity(vMax_idx);
-%% plot out. see if that makes sense in plots
-tempv = velocity(1:idx_T1_appears(2)); % for a whole trial
-
-close all
-
-plot(tempv)
+%% Overall check
+plot(velocity)
 hold on
-plot( idx_T1_disappears(1)+idx_in_start, velocity(idx_T1_disappears(1)+idx_in_start), '*' )
-hold on
-plot( idx_T1_appears(1)+idx_out_start, velocity(idx_T1_appears(1)+idx_out_start), '*' )
-hold on
-% add maximums
-plot( vMax_idx, velocity(vMax_idx), '*' )
-%%
-figure
-plot(velocity(outStarts:inStarts))
-hold on 
-plot (vm_idx, vm, '
+plot(at_maxvel, maxvel, '*')
+plot(all_starts, velocity(all_starts), '*')
+
+%% Save workspace variables
+save('baseline.mat',    'T1_in_starts','T1_out_starts', 'T1_pkin_x',...
+    'T1_pkout_x','T2_in_starts', 'T2_out_starts', 'T2_pkin_x',...
+    'T2_pkout_x','T3_in_starts','T3_out_starts','T3_pkin_x',...
+    'T3_pkout_x',...
+    'acc_matrix','acceleration', 'all_starts','at_maxvel',...
+    'numoftrials', 'pos_matrix', 'vel_matrix','velocity',...
+    '-v1');
+
+    
