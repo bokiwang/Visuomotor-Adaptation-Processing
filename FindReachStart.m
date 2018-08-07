@@ -13,25 +13,9 @@ function IndexOfStarts = FindReachStart (VelocityArray, LeftBoundaryArray, Right
 % IndexOfStarts: Numerical Array
 % ----------------- end -------------------------
 
-% screw all that. I'm finding the minimum. 
-
-%    is_v_low = (v_out < V_END);
-%     if_hit_home = Home( idx_T1_appears(i)+1 : idx_T1_disappears(i) ); 
-%     % find indices for points that suffice the critia
-%     indices = find(is_v_low & if_hit_home);  % local indices 
-%     
-%     % if criteria not met, very likely there's an overshoot. don't check for
-%     % home
-%     if length(indices) == 0   
-%         indices = find(is_v_low);
-%     end    
-%     % If more than one index, use local minimum as start/end point    
-%     if length(indices) > 1 
-
 IndexOfStarts = zeros(NumOfTrials,1);  % all out_starts in here for T1
 
 % find the start point for each trial
-
 if length(RightBoundaryArray) == NumOfTrials    % this is the normal condition
     for i = 1:NumOfTrials
         v_out = VelocityArray( LeftBoundaryArray(i)+1 : RightBoundaryArray(i) ); % outward reach velocity

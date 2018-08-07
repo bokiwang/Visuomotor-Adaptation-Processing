@@ -54,12 +54,12 @@ clear A raw_data
 
 %% Visual Inspection and mark
 
-% Mark Velocity Profile
+% Mark Velocity Profile and double check. 
 % set up markers for data linking to update figure
 vpmarker_x = all_starts;
 vpmarker_y = velocity(all_starts);
 % mark 
-[x, y] = MarkVelocity(velocity, vpmarker_x, vpmarker_y);
+[x, y] = MarkVelocity(velocity, vpmarker_x, vpmarker_y, biofbX, biofbY);
 all_starts = x;
 % clear workspace
 clear x y vpmarker_x vpmarker_y
@@ -70,7 +70,11 @@ T2_out_starts = all_starts(3:6: 3+(numoftrials-1)*6);
 T2_in_starts = all_starts(4:6: 4+(numoftrials-1)*6);
 T3_out_starts = all_starts(5:6: 5+(numoftrials-1)*6);
 T3_in_starts = all_starts(6:6: 6+(numoftrials-1)*6);
-
+%% DOUBLE CHECK if marked velocity is correct
+[wrong_idx, wrong_starts] = DoubleCheck(all_starts, biofbX, biofbY)
+% if there are wrong starts, rerun MarkVelocity and remark based on the
+% wrong start position
+% Then rerun double check until there are no more wrong_starts. 
 %% find maximum v during a reach 
 [at_maxvel, maxvel] = MaxVel(velocity, all_starts);
 % separate reaches
@@ -83,11 +87,12 @@ T3_pkin_x = at_maxvel(6:6: 6+(numoftrials-1)*6);
 
 
 %% Overall check
+figure
 plot(velocity)
 hold on
 plot(at_maxvel, maxvel, '*')
 plot(all_starts, velocity(all_starts), '*')
 
 %% Save workspace variables
-save('pilot_baseline_08062018.mat')
+save('pilot_post30_08062018.mat')
     

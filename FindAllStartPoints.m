@@ -14,8 +14,6 @@ function [all_starts, numoftrials] = FindAllStartPoints(velocity, biofbX, biofbY
 %
 % ------------------ End -------------------------------
 
-
-% for baseline and washout conditions
 thereis_T1 = (biofbX == -0.1157); % There is Biofeedback showing Target 1 when value=1
 thereis_T2 = (biofbY == 0.18);
 thereis_T3 = (biofbX == 0.1157);
@@ -34,8 +32,17 @@ idx_T3_appears = find(thereis_T3(1:end-1)==0 & thereis_T3(2:end) == 1);
 
 % the number of indices for T3 disappearances indicates the total number of 
 % reaches. Because priyanka end each block manually 
+% sometimes Priyanka will have participants do one more reach and then stop
+% the trial. 
 numoftrials = length(idx_T3_disappears);
-
+% if she didn't let participants do one more reach
+if length(idx_T3_disappears) == length(idx_T1_appears)
+        % add the last point of the series as index to idx_T1_appears
+        % so that in the FindReachStart function, it can distinguish T3
+        % inward reaches
+        idx_T1_appears(end+1)=length(velocity);
+end
+    
 % Get start points for all reaches
     % The start point for outreach for T1 has to be between when T1 appears 
     % and when T1 disappears.

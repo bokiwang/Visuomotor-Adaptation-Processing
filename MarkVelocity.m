@@ -1,4 +1,4 @@
-function [x, y] = MarkVelocity(Velocity, vpmarker_x, vpmarker_y)
+function [x, y] = MarkVelocity(Velocity, vpmarker_x, vpmarker_y, biofbX, biofbY)
 %------ Visually inspect and mark velocity profile -----------
 % Boki Wang
 % August 2018
@@ -45,7 +45,7 @@ to_exit = 0;
 
 while ( ~to_exit )
        clear cursor_info
-       choice = menu('Select Change if you want to change markers','Change','Done');
+       choice = menu('Select Change if you want to change markers','Change','Double Check','Done');
        fig = gcf;
        
        switch choice
@@ -79,7 +79,10 @@ while ( ~to_exit )
                     assignin('base','vpmarker_y',y);
                     refreshdata(hdl)
                 end
-             case 2
+           case 2
+               [wrong_idx, wrong_starts] = DoubleCheck(x, biofbX, biofbY)
+               title('Check command window for any wrong markers.')
+           case 3
                 close all
                 to_exit = 1;
        end                     
